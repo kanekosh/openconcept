@@ -1,6 +1,6 @@
 """Definition of the Vector Combiner/Splitter Component."""
 
-import collections
+from collections.abc import Iterable
 import numpy as np
 from scipy import sparse as sp
 from six import string_types
@@ -51,20 +51,19 @@ class VectorConcatenateComp(ExplicitComponent):
             (same as add_output method for ExplicitComponent)
             Examples include units (str or None), desc (str)
         """
-        complexify = kwargs.pop('complex', False)
-        super(VectorConcatenateComp, self).__init__(complex=complexify)
+        super(VectorConcatenateComp, self).__init__()
 
         self._add_systems = []
 
         if isinstance(output_name, string_types):
-            if (not isinstance(input_names, collections.Iterable) or
-                    not isinstance(vec_sizes, collections.Iterable)):
+            if (not isinstance(input_names, Iterable) or
+                    not isinstance(vec_sizes, Iterable)):
                 raise ValueError('User must provide list of input name(s)'
                                  'and list of vec_sizes for each input')
 
             self._add_systems.append((output_name, input_names, vec_sizes, length, val,
                                       kwargs))
-        elif isinstance(output_name, collections.Iterable):
+        elif isinstance(output_name, Iterable):
             raise NotImplementedError('Declaring multiple relations '
                                       'on initiation is not implemented.'
                                       'Use a string to name a single addition relationship or use '
@@ -75,18 +74,6 @@ class VectorConcatenateComp(ExplicitComponent):
             raise ValueError(
                 "First argument to init must be either of type "
                 "`str' or 'None'")
-
-    def initialize(self):
-        """
-        Declare options.
-
-        Parameters
-        ----------
-        complex : Boolean
-            Set True to enable complex math (e.g. for complex step verification)
-        """
-        self.options.declare('complex', default=False,
-                             desc="Allocate as complex (e.g. for complex-step verification)")
 
     def add_relation(self, output_name, input_names, vec_sizes, length=1, val=1.0,
                      units=None, res_units=None, desc='', lower=None, upper=None, ref=1.0,
@@ -140,8 +127,8 @@ class VectorConcatenateComp(ExplicitComponent):
                   'lower': lower, 'upper': upper, 'ref': ref, 'ref0': ref0,
                   'res_ref': res_ref}
 
-        if (not isinstance(input_names, collections.Iterable) or
-                not isinstance(vec_sizes, collections.Iterable)):
+        if (not isinstance(input_names, Iterable) or
+                not isinstance(vec_sizes, Iterable)):
             raise ValueError('User must provide list of input name(s)'
                              'and list of vec_sizes for each input')
 
@@ -208,13 +195,12 @@ class VectorConcatenateComp(ExplicitComponent):
         outputs : Vector
             unscaled, dimensional output variables read via outputs[key]
         """
-        complexify = self.options['complex']
         for (output_name, input_names, vec_sizes, length, val,
              kwargs) in self._add_systems:
             if isinstance(input_names, string_types):
                 input_names = [input_names]
 
-            if complexify:
+            if self.under_complex_step:
                 dtype = np.complex_
             else:
                 dtype = np.float64
@@ -273,20 +259,19 @@ class VectorSplitComp(ExplicitComponent):
             (same as add_output method for ExplicitComponent)
             Examples include units (str or None), desc (str)
         """
-        complexify = kwargs.pop('complex', False)
-        super(VectorSplitComp, self).__init__(complex=complexify)
+        super(VectorSplitComp, self).__init__()
 
         self._add_systems = []
 
         if isinstance(input_name, string_types):
-            if (not isinstance(output_names, collections.Iterable) or
-                    not isinstance(vec_sizes, collections.Iterable)):
+            if (not isinstance(output_names, Iterable) or
+                    not isinstance(vec_sizes, Iterable)):
                 raise ValueError('User must provide list of output name(s)'
                                  'and list of vec_sizes for each input')
 
             self._add_systems.append((output_names, input_name, vec_sizes, length, val,
                                       kwargs))
-        elif isinstance(input_name, collections.Iterable):
+        elif isinstance(input_name, Iterable):
             raise NotImplementedError('Declaring multiple relations '
                                       'on initiation is not implemented.'
                                       'Use a string to name a single addition relationship or use '
@@ -297,18 +282,6 @@ class VectorSplitComp(ExplicitComponent):
             raise ValueError(
                 "input_name argument to init must be either of type "
                 "`str' or 'None'")
-
-    def initialize(self):
-        """
-        Declare options.
-
-        Parameters
-        ----------
-        complex : Boolean
-            Set True to enable complex math (e.g. for complex step verification)
-        """
-        self.options.declare('complex', default=False,
-                             desc="Allocate as complex (e.g. for complex-step verification)")
 
     def add_relation(self, output_names, input_name, vec_sizes, length=1, val=1.0,
                      units=None, res_units=None, desc='', lower=None, upper=None, ref=1.0,
@@ -362,8 +335,8 @@ class VectorSplitComp(ExplicitComponent):
                   'lower': lower, 'upper': upper, 'ref': ref, 'ref0': ref0,
                   'res_ref': res_ref}
 
-        if (not isinstance(output_names, collections.Iterable) or
-                not isinstance(vec_sizes, collections.Iterable)):
+        if (not isinstance(output_names, Iterable) or
+                not isinstance(vec_sizes, Iterable)):
             raise ValueError('User must provide list of output name(s)'
                              'and list of vec_sizes for each input')
 
@@ -429,13 +402,12 @@ class VectorSplitComp(ExplicitComponent):
         outputs : Vector
             unscaled, dimensional output variables read via outputs[key]
         """
-        complexify = self.options['complex']
         for (output_names, input_name, vec_sizes, length, val,
              kwargs) in self._add_systems:
             if isinstance(output_names, string_types):
                 output_names = [output_names]
 
-            if complexify:
+            if self.under_complex_step:
                 dtype = np.complex_
             else:
                 dtype = np.float64

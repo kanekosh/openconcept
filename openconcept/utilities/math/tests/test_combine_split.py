@@ -6,7 +6,7 @@ import numpy as np
 
 from openmdao.api import Problem, Group, IndepVarComp
 from openconcept.utilities.math.combine_split_comp import VectorConcatenateComp, VectorSplitComp
-from openmdao.utils.assert_utils import assert_rel_error, assert_check_partials
+from openmdao.utils.assert_utils import assert_near_equal, assert_check_partials
 
 class TestConcatenateScalars(unittest.TestCase):
 
@@ -28,7 +28,7 @@ class TestConcatenateScalars(unittest.TestCase):
         self.p.model.connect('a', 'vector_concat_comp.input_a')
         self.p.model.connect('b', 'vector_concat_comp.input_b')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,)
         self.p['b'] = np.random.rand(self.nn,)
@@ -40,10 +40,10 @@ class TestConcatenateScalars(unittest.TestCase):
         b = self.p['b']
         out = self.p['vector_concat_comp.concat_output']
         expected = np.concatenate((a,b))
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestConcatenateNx1(unittest.TestCase):
@@ -65,7 +65,7 @@ class TestConcatenateNx1(unittest.TestCase):
         self.p.model.connect('a', 'vector_concat_comp.input_a')
         self.p.model.connect('b', 'vector_concat_comp.input_b')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,)
         self.p['b'] = np.random.rand(self.nn,)
@@ -77,10 +77,10 @@ class TestConcatenateNx1(unittest.TestCase):
         b = self.p['b']
         out = self.p['vector_concat_comp.concat_output']
         expected = np.concatenate((a,b))
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestConcatenateNx3(unittest.TestCase):
@@ -103,7 +103,7 @@ class TestConcatenateNx3(unittest.TestCase):
         self.p.model.connect('a', 'vector_concat_comp.input_a')
         self.p.model.connect('b', 'vector_concat_comp.input_b')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=False)
 
         self.p['a'] = np.random.rand(self.nn,self.length)
         self.p['b'] = np.random.rand(self.nn,self.length)
@@ -115,7 +115,7 @@ class TestConcatenateNx3(unittest.TestCase):
         b = self.p['b']
         out = self.p['vector_concat_comp.concat_output']
         expected = np.concatenate((a,b))
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
         partials = self.p.check_partials(method='fd', out_stream=None)
@@ -139,7 +139,7 @@ class TestConcatenateInitMethod(unittest.TestCase):
         self.p.model.connect('a', 'vector_concat_comp.input_a')
         self.p.model.connect('b', 'vector_concat_comp.input_b')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,self.length)
         self.p['b'] = np.random.rand(self.nn,self.length)
@@ -151,10 +151,10 @@ class TestConcatenateInitMethod(unittest.TestCase):
         b = self.p['b']
         out = self.p['vector_concat_comp.concat_output']
         expected = np.concatenate((a,b))
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestConcatenateMultipleSystems(unittest.TestCase):
@@ -184,7 +184,7 @@ class TestConcatenateMultipleSystems(unittest.TestCase):
         self.p.model.connect('d', 'vector_concat_comp.input_d')
 
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,self.length)
         self.p['b'] = np.random.rand(self.nn,self.length)
@@ -204,11 +204,11 @@ class TestConcatenateMultipleSystems(unittest.TestCase):
 
         expected1 = np.concatenate((a,b))
         expected2 = np.concatenate((c,d))
-        assert_rel_error(self, out1, expected1,1e-16)
-        assert_rel_error(self, out2, expected2,1e-16)
+        assert_near_equal(out1, expected1,1e-16)
+        assert_near_equal(out2, expected2,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestConcatenateNx3Units(unittest.TestCase):
@@ -231,7 +231,7 @@ class TestConcatenateNx3Units(unittest.TestCase):
         self.p.model.connect('a', 'vector_concat_comp.input_a')
         self.p.model.connect('b', 'vector_concat_comp.input_b')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,self.length)
         self.p['b'] = np.random.rand(self.nn,self.length)
@@ -244,7 +244,7 @@ class TestConcatenateNx3Units(unittest.TestCase):
         b = b*1000.
         out = self.p['vector_concat_comp.concat_output']
         expected = np.concatenate((a,b))
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
 class TestConcatenate3InputsDiffSizesNx1(unittest.TestCase):
     def setUp(self):
@@ -268,7 +268,7 @@ class TestConcatenate3InputsDiffSizesNx1(unittest.TestCase):
         self.p.model.connect('c', 'vector_concat_comp.input_c')
 
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,)
         self.p['b'] = np.random.rand(self.nn,)
@@ -283,10 +283,10 @@ class TestConcatenate3InputsDiffSizesNx1(unittest.TestCase):
 
         out = self.p['vector_concat_comp.concat_output']
         expected = np.concatenate((a,b,c))
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestConcatenate3InputsDiffSizesNx3(unittest.TestCase):
@@ -312,7 +312,7 @@ class TestConcatenate3InputsDiffSizesNx3(unittest.TestCase):
         self.p.model.connect('c', 'vector_concat_comp.input_c')
 
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,self.length)
         self.p['b'] = np.random.rand(self.nn,self.length)
@@ -327,10 +327,10 @@ class TestConcatenate3InputsDiffSizesNx3(unittest.TestCase):
 
         out = self.p['vector_concat_comp.concat_output']
         expected = np.concatenate((a,b,c))
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestConcatenateWrongVecSizesInputMismatch(unittest.TestCase):
@@ -374,7 +374,7 @@ class TestSplitScalars(unittest.TestCase):
         splitter.add_relation(['output_a','output_b'],'input_to_split',vec_sizes=[1,1])
 
         self.p.model.connect('input_to_split', 'vector_split_comp.input_to_split')
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
         self.p['input_to_split'] = np.random.rand(self.nn*2,)
         self.p.run_model()
 
@@ -385,11 +385,11 @@ class TestSplitScalars(unittest.TestCase):
 
         expected_a = input_to_split[0]
         expected_b = input_to_split[1]
-        assert_rel_error(self, out_a, expected_a,1e-16)
-        assert_rel_error(self, out_b, expected_b,1e-16)
+        assert_near_equal(out_a, expected_a,1e-16)
+        assert_near_equal(out_b, expected_b,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestSplitNx1(unittest.TestCase):
@@ -409,7 +409,7 @@ class TestSplitNx1(unittest.TestCase):
         splitter.add_relation(['output_a','output_b'],'input_to_split',vec_sizes=[self.nn,self.nn])
 
         self.p.model.connect('input_to_split', 'vector_split_comp.input_to_split')
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
         self.p['input_to_split'] = np.random.rand(self.nn*2,)
         self.p.run_model()
 
@@ -420,11 +420,11 @@ class TestSplitNx1(unittest.TestCase):
 
         expected_a = input_to_split[0:self.nn]
         expected_b = input_to_split[self.nn:2*self.nn]
-        assert_rel_error(self, out_a, expected_a,1e-16)
-        assert_rel_error(self, out_b, expected_b,1e-16)
+        assert_near_equal(out_a, expected_a,1e-16)
+        assert_near_equal(out_b, expected_b,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestSplitNx3(unittest.TestCase):
@@ -444,7 +444,7 @@ class TestSplitNx3(unittest.TestCase):
         splitter.add_relation(['output_a','output_b'],'input_to_split',vec_sizes=[self.nn,self.nn],length=3)
 
         self.p.model.connect('input_to_split', 'vector_split_comp.input_to_split')
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
         self.p['input_to_split'] = np.random.rand(self.nn*2,3)
         self.p.run_model()
 
@@ -455,11 +455,11 @@ class TestSplitNx3(unittest.TestCase):
 
         expected_a = input_to_split[0:self.nn,:]
         expected_b = input_to_split[self.nn:2*self.nn,:]
-        assert_rel_error(self, out_a, expected_a,1e-16)
-        assert_rel_error(self, out_b, expected_b,1e-16)
+        assert_near_equal(out_a, expected_a,1e-16)
+        assert_near_equal(out_b, expected_b,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestSplitInitMethod(unittest.TestCase):
@@ -477,7 +477,7 @@ class TestSplitInitMethod(unittest.TestCase):
         splitter=self.p.model.add_subsystem(name='vector_split_comp',
                                    subsys=VectorSplitComp(['output_a','output_b'],'input_to_split',vec_sizes=[self.nn,self.nn],length=3))
         self.p.model.connect('input_to_split', 'vector_split_comp.input_to_split')
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
         self.p['input_to_split'] = np.random.rand(self.nn*2,3)
         self.p.run_model()
 
@@ -488,11 +488,11 @@ class TestSplitInitMethod(unittest.TestCase):
 
         expected_a = input_to_split[0:self.nn,:]
         expected_b = input_to_split[self.nn:2*self.nn,:]
-        assert_rel_error(self, out_a, expected_a,1e-16)
-        assert_rel_error(self, out_b, expected_b,1e-16)
+        assert_near_equal(out_a, expected_a,1e-16)
+        assert_near_equal(out_b, expected_b,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestSplitMultipleSystems(unittest.TestCase):
@@ -512,7 +512,7 @@ class TestSplitMultipleSystems(unittest.TestCase):
         splitter.add_relation(['output_a','output_b','output_c'],'input_to_split',vec_sizes=[self.nn,self.nn,2],length=3)
 
         self.p.model.connect('input_to_split', 'vector_split_comp.input_to_split')
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
         self.p['input_to_split'] = np.random.rand(self.nn*2+2,3)
         self.p.run_model()
 
@@ -526,12 +526,12 @@ class TestSplitMultipleSystems(unittest.TestCase):
         expected_b = input_to_split[self.nn:2*self.nn,:]
         expected_c = input_to_split[2*self.nn:2*self.nn+2,:]
 
-        assert_rel_error(self, out_a, expected_a,1e-16)
-        assert_rel_error(self, out_b, expected_b,1e-16)
-        assert_rel_error(self, out_c, expected_c,1e-16)
+        assert_near_equal(out_a, expected_a,1e-16)
+        assert_near_equal(out_b, expected_b,1e-16)
+        assert_near_equal(out_c, expected_c,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestSplitNx3Units(unittest.TestCase):
@@ -551,7 +551,7 @@ class TestSplitNx3Units(unittest.TestCase):
         splitter.add_relation(['output_a','output_b'],'input_to_split',vec_sizes=[self.nn,self.nn],length=3, units='m')
 
         self.p.model.connect('input_to_split', 'vector_split_comp.input_to_split')
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
         self.p['input_to_split'] = np.random.rand(self.nn*2,3)
         self.p.run_model()
 
@@ -562,11 +562,11 @@ class TestSplitNx3Units(unittest.TestCase):
 
         expected_a = input_to_split[0:self.nn,:]
         expected_b = input_to_split[self.nn:2*self.nn,:]
-        assert_rel_error(self, out_a, expected_a,1e-16)
-        assert_rel_error(self, out_b, expected_b,1e-16)
+        assert_near_equal(out_a, expected_a,1e-16)
+        assert_near_equal(out_b, expected_b,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestSplitWrongVecSizesOutputMismatch(unittest.TestCase):
@@ -605,7 +605,7 @@ class TestForDocs(unittest.TestCase):
         """
         import numpy as np
         from openmdao.api import Problem, Group, IndepVarComp
-        from openmdao.utils.assert_utils import assert_rel_error
+        from openmdao.utils.assert_utils import assert_near_equal
         from openconcept.utilities.math.combine_split_comp import VectorConcatenateComp, VectorSplitComp
 
         n_takeoff_pts = 3
@@ -646,7 +646,7 @@ class TestForDocs(unittest.TestCase):
                               vec_sizes=[3,5],length=2, units='m/s')
         p.model.connect('combiner.velocity','divider.velocity')
 
-        p.setup()
+        p.setup(force_alloc_complex=True)
 
         #set thrust to exceed drag, weight to equal lift for this scenario
         p['takeoff_conditions.velocity'][:,0] = [30, 40, 50]
@@ -662,9 +662,9 @@ class TestForDocs(unittest.TestCase):
         expected_vel = np.array([[30, 0], [40, 0], [50, 0], [60, 5], [60, 0], [60, 0], [60, 0], [60, -5]])
         expected_alt = np.array([0, 0, 0, 6000, 7500, 8000, 8500, 5000])
         expected_split_vel = np.array([[60, 5], [60, 0], [60, 0], [60, 0], [60, -5]])
-        assert_rel_error(self, p.get_val('combiner.velocity', units='m/s'), expected_vel)
-        assert_rel_error(self, p.get_val('combiner.altitude', units='m'), expected_alt)
-        assert_rel_error(self, p.get_val('divider.cruise_vel', units='m/s'), expected_split_vel)
+        assert_near_equal(p.get_val('combiner.velocity', units='m/s'), expected_vel)
+        assert_near_equal(p.get_val('combiner.altitude', units='m'), expected_alt)
+        assert_near_equal(p.get_val('divider.cruise_vel', units='m/s'), expected_split_vel)
 
 if __name__ == '__main__':
     unittest.main()

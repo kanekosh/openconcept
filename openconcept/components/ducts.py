@@ -21,7 +21,7 @@ class ExplicitIncompressibleDuct(ExplicitComponent):
     fltcond|rho : float
         Density in the freestream (vector, kg/m**3)
     area_nozzle : float
-        Cross-sectional area of the outlet nozzle (scalar, m**2)
+        Cross-sectional area of the outlet nozzle (vector, m**2)
         Generally must be the narrowest portion of the duct for analysis to be valid
     delta_p_hex : float
         Pressure drop across the heat exchanger (vector, Pa)
@@ -55,7 +55,7 @@ class ExplicitIncompressibleDuct(ExplicitComponent):
         nn = self.options['num_nodes']
         self.add_input('fltcond|Utrue', shape=(nn,),  units='m/s')
         self.add_input('fltcond|rho', shape=(nn,),  units='kg/m**3')
-        self.add_input('area_nozzle',  units='m**2')
+        self.add_input('area_nozzle', shape=(nn,), units='m**2')
         self.add_input('delta_p_hex',  shape=(nn,), units='Pa')
 
         self.add_output('mdot', shape=(nn,),  units='kg/s')
@@ -74,6 +74,7 @@ class ExplicitIncompressibleDuct(ExplicitComponent):
         interior = (inputs['fltcond|rho']**2 * inputs['fltcond|Utrue']**2 + 2*inputs['fltcond|rho']*inputs['delta_p_hex'])/(1+static_pressure_loss_factor)
         interior[np.where(interior<0.0)]=1e-10
         mdot = inputs['area_nozzle'] * np.sqrt(interior)
+        mdot[np.where(mdot<0.0)]=1e-10
         # if self.pathname.split('.')[1] == 'climb':
         #     print('Nozzle area:'+str(inputs['area_nozzle']))
         #     print('mdot:'+str(mdot))
@@ -682,8 +683,8 @@ class Inlet(Group):
         self.add_subsystem('mach',MachNumberfromSpeed(num_nodes=nn), promotes_inputs=['*'], promotes_outputs=['*'])
         self.add_subsystem('freestreamtotaltemperature',TotalTemperatureIsentropic(num_nodes=nn), promotes_inputs=['*'], promotes_outputs=['*'])
         self.add_subsystem('freestreamtotalpressure',TotalPressureIsentropic(num_nodes=nn), promotes_inputs=['*'])
-        self.add_subsystem('inlet_recovery', ExecComp('eta_ram=1.0 - 0.00*tanh(10*M)', vectorize=True, eta_ram=np.ones((nn,)), M=0.1*np.ones((nn,))), promotes_inputs=['M'])
-        self.add_subsystem('totalpressure', ExecComp('pt=pt_in * eta_ram', pt={'units':'Pa','value':np.ones((nn,))}, pt_in={'units':'Pa','value':np.ones((nn,))}, eta_ram=np.ones((nn,)), vectorize=True), promotes_outputs=['pt'])
+        self.add_subsystem('inlet_recovery', ExecComp('eta_ram=1.0 - 0.00*tanh(10*M)', has_diag_partials=True, eta_ram=np.ones((nn,)), M=0.1*np.ones((nn,))), promotes_inputs=['M'])
+        self.add_subsystem('totalpressure', ExecComp('pt=pt_in * eta_ram', pt={'units':'Pa','value':np.ones((nn,))}, pt_in={'units':'Pa','value':np.ones((nn,))}, eta_ram=np.ones((nn,)), has_diag_partials=True), promotes_outputs=['pt'])
         self.connect('freestreamtotalpressure.pt','totalpressure.pt_in')
         self.connect('inlet_recovery.eta_ram','totalpressure.eta_ram')
 

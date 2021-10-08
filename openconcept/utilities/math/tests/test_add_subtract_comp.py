@@ -7,7 +7,7 @@ import numpy as np
 from openmdao.api import Problem, Group, IndepVarComp
 #from openmdao.components.add_subtract_comp import AddSubtractComp
 from openconcept.utilities.math.add_subtract_comp import AddSubtractComp
-from openmdao.utils.assert_utils import assert_rel_error, assert_check_partials
+from openmdao.utils.assert_utils import assert_near_equal, assert_check_partials
 
 class TestAddSubtractCompScalars(unittest.TestCase):
 
@@ -29,7 +29,7 @@ class TestAddSubtractCompScalars(unittest.TestCase):
         self.p.model.connect('a', 'add_subtract_comp.input_a')
         self.p.model.connect('b', 'add_subtract_comp.input_b')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,)
         self.p['b'] = np.random.rand(self.nn,)
@@ -41,10 +41,10 @@ class TestAddSubtractCompScalars(unittest.TestCase):
         b = self.p['b']
         out = self.p['add_subtract_comp.adder_output']
         expected = a + b
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestAddSubtractCompNx1(unittest.TestCase):
@@ -69,7 +69,7 @@ class TestAddSubtractCompNx1(unittest.TestCase):
         self.p.model.connect('a', 'add_subtract_comp.input_a')
         self.p.model.connect('b', 'add_subtract_comp.input_b')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,)
         self.p['b'] = np.random.rand(self.nn,)
@@ -81,10 +81,10 @@ class TestAddSubtractCompNx1(unittest.TestCase):
         b = self.p['b']
         out = self.p['add_subtract_comp.adder_output']
         expected = a + b
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestAddSubtractCompNx1VectorScalar(unittest.TestCase):
@@ -109,7 +109,7 @@ class TestAddSubtractCompNx1VectorScalar(unittest.TestCase):
         self.p.model.connect('a', 'add_subtract_comp.input_a')
         self.p.model.connect('b', 'add_subtract_comp.input_b')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn,)
 
@@ -120,10 +120,10 @@ class TestAddSubtractCompNx1VectorScalar(unittest.TestCase):
         b = self.p['b']
         out = self.p['add_subtract_comp.adder_output']
         expected = a + b
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestAddSubtractCompNx3(unittest.TestCase):
@@ -148,7 +148,7 @@ class TestAddSubtractCompNx3(unittest.TestCase):
         self.p.model.connect('a', 'add_subtract_comp.input_a')
         self.p.model.connect('b', 'add_subtract_comp.input_b')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn, 3)
         self.p['b'] = np.random.rand(self.nn, 3)
@@ -160,10 +160,10 @@ class TestAddSubtractCompNx3(unittest.TestCase):
         b = self.p['b']
         out = self.p['add_subtract_comp.adder_output']
         expected = a + b
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestAddSubtractMultipleInputs(unittest.TestCase):
@@ -190,7 +190,7 @@ class TestAddSubtractMultipleInputs(unittest.TestCase):
         self.p.model.connect('b', 'add_subtract_comp.input_b')
         self.p.model.connect('c', 'add_subtract_comp.input_c')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=False)
 
         self.p['a'] = np.random.rand(self.nn, 3)
         self.p['b'] = np.random.rand(self.nn, 3)
@@ -204,7 +204,7 @@ class TestAddSubtractMultipleInputs(unittest.TestCase):
         c = self.p['c']
         out = self.p['add_subtract_comp.adder_output']
         expected = a + b + c
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
         partials = self.p.check_partials(method='fd', out_stream=None)
@@ -234,7 +234,7 @@ class TestAddSubtractScalingFactors(unittest.TestCase):
         self.p.model.connect('b', 'add_subtract_comp.input_b')
         self.p.model.connect('c', 'add_subtract_comp.input_c')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn, 3)
         self.p['b'] = np.random.rand(self.nn, 3)
@@ -248,10 +248,10 @@ class TestAddSubtractScalingFactors(unittest.TestCase):
         c = self.p['c']
         out = self.p['add_subtract_comp.adder_output']
         expected = 2*a + b - c
-        assert_rel_error(self, out, expected,1e-16)
+        assert_near_equal(out, expected,1e-16)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestAddSubtractUnits(unittest.TestCase):
@@ -278,7 +278,7 @@ class TestAddSubtractUnits(unittest.TestCase):
         self.p.model.connect('b', 'add_subtract_comp.input_b')
         self.p.model.connect('c', 'add_subtract_comp.input_c')
 
-        self.p.setup()
+        self.p.setup(force_alloc_complex=True)
 
         self.p['a'] = np.random.rand(self.nn, 3)
         self.p['b'] = np.random.rand(self.nn, 3)
@@ -293,10 +293,10 @@ class TestAddSubtractUnits(unittest.TestCase):
         out = self.p['add_subtract_comp.adder_output']
         m_to_ft = 3.280839895
         expected = a + b*m_to_ft + c*m_to_ft
-        assert_rel_error(self, out, expected,1e-8)
+        assert_near_equal(out, expected,1e-8)
 
     def test_partials(self):
-        partials = self.p.check_partials(method='fd', out_stream=None)
+        partials = self.p.check_partials(method='cs', out_stream=None)
         assert_check_partials(partials)
 
 class TestWrongScalingFactorCount(unittest.TestCase):
@@ -335,7 +335,7 @@ class TestForDocs(unittest.TestCase):
         import numpy as np
         #from openmdao.api import Problem, Group, IndepVarComp
         from openconcept.utilities.math.add_subtract_comp import AddSubtractComp
-        from openmdao.utils.assert_utils import assert_rel_error
+        from openmdao.utils.assert_utils import assert_near_equal
 
         n = 3
 
@@ -363,7 +363,7 @@ class TestForDocs(unittest.TestCase):
         p.model.connect('lift', 'totalforcecomp.lift')
         p.model.connect('weight', 'totalforcecomp.weight')
 
-        p.setup()
+        p.setup(force_alloc_complex=True)
 
         #set thrust to exceed drag, weight to equal lift for this scenario
         p['thrust'][:,0] = [500, 600, 700]
@@ -377,7 +377,7 @@ class TestForDocs(unittest.TestCase):
 
         # Verify the results
         expected_i = np.array([[100, 200, 300], [0, -1, -2]]).T
-        assert_rel_error(self, p.get_val('totalforcecomp.total_force', units='kN'), expected_i)
+        assert_near_equal(p.get_val('totalforcecomp.total_force', units='kN'), expected_i)
 
 
 if __name__ == '__main__':

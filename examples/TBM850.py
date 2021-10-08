@@ -19,8 +19,6 @@ from openconcept.utilities.dict_indepvarcomp import DictIndepVarComp
 from examples.aircraft_data.TBM850 import data as acdata
 from openconcept.analysis.performance.mission_profiles import FullMissionAnalysis
 
-
-
 class TBM850AirplaneModel(Group):
     """
     A custom model specific to the TBM 850 airplane
@@ -66,15 +64,12 @@ class TBM850AirplaneModel(Group):
         self.connect('propmodel.prop1.component_weight', 'W_propeller')
         self.connect('propmodel.eng1.component_weight', 'W_engine')
 
-                # airplanes which consume fuel will need to integrate
+        # airplanes which consume fuel will need to integrate
         # fuel usage across the mission and subtract it from TOW
-        nn_simpson = int((nn - 1) / 2)
-        self.add_subsystem('intfuel', Integrator(num_intervals=nn_simpson, method='simpson',
-                                                 quantity_units='kg', diff_units='s',
-                                                 time_setup='duration'),
-                           promotes_inputs=[('dqdt', 'fuel_flow'), 'duration',
-                                            ('q_initial', 'fuel_used_initial')],
-                           promotes_outputs=[('q', 'fuel_used'), ('q_final', 'fuel_used_final')])
+        intfuel = self.add_subsystem('intfuel', Integrator(num_nodes=nn, method='simpson', diff_units='s',
+                                                              time_setup='duration'), promotes_inputs=['*'], promotes_outputs=['*'])
+        intfuel.add_integrand('fuel_used', rate_name='fuel_flow', val=1.0, units='kg')
+        
         self.add_subsystem('weight', AddSubtractComp(output_name='weight',
                                                      input_names=['ac|weights|MTOW', 'fuel_used'],
                                                      units='kg', vec_size=[1, nn],
@@ -91,7 +86,7 @@ class TBMAnalysisGroup(Group):
         nn = 11
 
         # Define a bunch of design varaiables and airplane-specific parameters
-        dv_comp = self.add_subsystem('dv_comp', DictIndepVarComp(acdata, seperator='|'),
+        dv_comp = self.add_subsystem('dv_comp',  DictIndepVarComp(acdata),
                                      promotes_outputs=["*"])
         dv_comp.add_output_from_dict('ac|aero|CLmax_TO')
         dv_comp.add_output_from_dict('ac|aero|polar|e')
@@ -123,17 +118,13 @@ class TBMAnalysisGroup(Group):
         dv_comp.add_output_from_dict('ac|num_passengers_max')
         dv_comp.add_output_from_dict('ac|q_cruise')
 
-        # Ensure that any state variables are connected across the mission as intended
-        connect_phases = ['rotate', 'climb', 'cruise', 'descent']
-        connect_states = ['range', 'fuel_used', 'fltcond|h']
-        extra_states_tuple = [(connect_state, connect_phases) for connect_state in connect_states]
-
         # Run a full mission analysis including takeoff, climb, cruise, and descent
         analysis = self.add_subsystem('analysis',
                                       FullMissionAnalysis(num_nodes=nn,
-                                                          aircraft_model=TBM850AirplaneModel,
-                                                          extra_states=extra_states_tuple),
+                                                          aircraft_model=TBM850AirplaneModel),
                                       promotes_inputs=['*'], promotes_outputs=['*'])
+        
+
 
 def run_tbm_analysis():
     # Set up OpenMDAO to analyze the airplane
@@ -182,9 +173,9 @@ if __name__ == "__main__":
     prob = run_tbm_analysis()
 
      # print some outputs
-    vars_list = ['ac|weights|MTOW','climb.OEW','descent.fuel_used_final','rotate.range_final','engineoutclimb.gamma']
-    units = ['lb','lb','lb','ft','deg']
-    nice_print_names = ['MTOW', 'OEW', 'Fuel used', 'TOFL (over 35ft obstacle)','Climb angle at V2']
+    vars_list = ['ac|weights|MTOW','climb.OEW','rotate.fuel_used_final','climb.fuel_used_final','cruise.fuel_used_final','descent.fuel_used_final','rotate.range_final','engineoutclimb.gamma']
+    units = ['lb','lb','lb','lb','lb','lb','ft','deg']
+    nice_print_names = ['MTOW', 'OEW', 'Rotate fuel', 'Climb fuel', 'Cruise fuel','Fuel used', 'TOFL (over 35ft obstacle)','Climb angle at V2']
     print("=======================================================================")
     for i, thing in enumerate(vars_list):
         print(nice_print_names[i]+': '+str(prob.get_val(thing,units=units[i])[0])+' '+units[i])
@@ -194,10 +185,10 @@ if __name__ == "__main__":
     if plots:
         x_var = 'range'
         x_unit = 'ft'
-        y_vars = ['fltcond|Ueas', 'fltcond|h']
-        y_units = ['kn', 'ft']
+        y_vars = ['fltcond|Ueas', 'fltcond|h', 'fuel_used']
+        y_units = ['kn', 'ft', 'lb']
         x_label = 'Distance (ft)'
-        y_labels = ['Veas airspeed (knots)', 'Altitude (ft)']
+        y_labels = ['Veas airspeed (knots)', 'Altitude (ft)', 'fuel used']
         phases = ['v0v1', 'v1vr', 'rotate', 'v1v0']
         plot_trajectory(prob, x_var, x_unit, y_vars, y_units, phases,
                         x_label=x_label, y_labels=y_labels,

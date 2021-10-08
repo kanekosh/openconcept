@@ -2,8 +2,7 @@
 
 ### Author: Benjamin J. Brelje
 
-[![Linux Status](https://travis-ci.org/mdolab/openconcept.svg?branch=master)](https://travis-ci.org/mdolab/openconcept)
-[![Windows status](https://ci.appveyor.com/api/projects/status/tn4hv14w5xlree4t/branch/master?svg=true)](https://ci.appveyor.com/project/bbrelje/openconcept/branch/master)
+[![Build Status](https://github.com/mdolab/openconcept/workflows/Build/badge.svg?branch=master)](https://github.com/mdolab/openconcept/actions?query=branch%3Amaster)
 [![Coverage Status](https://coveralls.io/repos/github/mdolab/openconcept/badge.svg)](https://coveralls.io/github/mdolab/openconcept)
 [![Documentation Status](https://readthedocs.org/projects/openconcept/badge/?version=latest)](https://openconcept.readthedocs.io/en/latest/?badge=latest)
 
@@ -32,7 +31,7 @@ Automatically-generated documentation is available at (https://openconcept.readt
 
 ### Requirements
 
-This toolkit requires the use of OpenMDAO 2.3.0 or later and will evolve rapidly as general utilities are moved from OpenConcept into the main OpenMDAO repository. OpenMDAO requires a late numpy and scipy.
+This toolkit requires the use of OpenMDAO 3.0.0 or later (2.8+ will work with minor arg changes) and will evolve rapidly as general utilities are moved from OpenConcept into the main OpenMDAO repository. OpenMDAO requires a late numpy and scipy.
 
 ## Citation
 
