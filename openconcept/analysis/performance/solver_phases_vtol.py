@@ -319,9 +319,8 @@ class UnsteadyFlightPhaseForTiltrotorTransition(oc.PhaseGroup):
     Settable mission parameters include:
         - Airspeed (fltcond|Ueas)
         - Vertical speed (fltcond|vs)
-        - derivative of Ueas and vs (i.e. acceleration)
+        - derivative of Ueas and vs (i.e. acceleration)  TODO: automate this
         - Duration of the segment (duration)
-        - Thrust tilt angle in cruise (Tangle_cruise), for smooth transition from the transition phase to cruise
 
     Throttle and rotor tilt angle (theta) is set automatically to achieve the given velocity history.
         - i.e., acceleration computed = differential of the given velocity history
@@ -406,7 +405,8 @@ class UnsteadyFlightPhaseForTiltrotorTransition(oc.PhaseGroup):
         self.add_subsystem('gs', Groundspeeds(num_nodes=nn), promotes_inputs=['*'], promotes_outputs=['*'])
         integ.add_integrand('range', rate_name='fltcond|groundspeed', val=1.0, units='m')
 
-        # angle of attack: alpha = -gamma + body_geom_alpha, where body_geom_alpha is the body AoA w.r.t. horizontal plane. Arcsin works if -90 <= gamma <= 90
+        # wing angle of attack: alpha = -gamma + body_geom_alpha, where body_geom_alpha is the body AoA w.r.t. horizontal plane. Arcsin works if -90 <= gamma <= 90.
+        # body_geom_alpha is determined so that CL is continuous between transition and cruise (BalanceComp should be added in a trajectory group in mission_profiles_vtol.py)
         sincos_dict = {'shape' : (nn,)}
         self.add_subsystem('angle_of_attack', ExecComp('alpha = -arcsin(singamma) + body_geom_alpha', alpha={'units' : 'rad', 'shape' : (nn,)}, singamma=sincos_dict, body_geom_alpha={'units' : 'rad', 'shape' : (1,)}),
                             promotes_inputs=[('singamma', 'fltcond|singamma'), 'body_geom_alpha'], promotes_outputs=[('alpha', 'fltcond|alpha')])
@@ -437,40 +437,3 @@ class UnsteadyFlightPhaseForTiltrotorTransition(oc.PhaseGroup):
                             promotes_inputs=['accel_horiz', 'accel_horiz_target'], promotes_outputs=['throttle'])
         self.add_subsystem('unsteadyflt2', BalanceComp(name='Tangle', val=np.ones((nn,)) * 90, lower=0., upper=180., units='deg', normalize=False, eq_units='m/s**2', rhs_name='accel_vert', lhs_name='accel_vert_target', rhs_val=np.ones((nn,))),
                             promotes_inputs=['accel_vert', 'accel_vert_target'], promotes_outputs=['Tangle'])
-
-        """
-        # Altenatively, we may want to use a single BalanceComp
-        # set [throttle, Tangle] such that [accel_horiz = accel_horiz_target, accel_vert = accel_vert_target]
-        # first, concatenate the lhs and rhs variables
-        self.add_subsystem('balance_lhs', ConcatVectorComp(num_nodes=nn), promotes_inputs=[('vec1', 'accel_horiz'), ('vec2', 'accel_vert')], promotes_outputs=[('vec_concat', 'accels')])
-        self.add_subsystem('balance_rhs', ConcatVectorComp(num_nodes=nn), promotes_inputs=[('vec1', 'accel_horiz_target'), ('vec2', 'accel_horiz_vert')], promotes_outputs=[('vec_concat', 'accels_target')])
-        # balance comp
-        val_init = np.concatenate((np.ones(nn)*0.5, np.ones(nn)*np.pi/2))
-        lower = np.zeros(2 * nn)
-        upper = np.concatenate((np.ones(nn)*1.5, np.ones(nn)*np.pi))
-        self.add_subsystem('unsteadyflt', om.BalanceComp(name='balance_imp_vars', val=val_init, lower=lower, upper=upper, units=None, normalize=False, eq_units='m/s**2', rhs_name='accels', lhs_name='accels_target', rhs_val=val_init),
-                            promotes_inputs=['accels', 'accels_target'])
-        # split implicit variables (which is the output of BalanceComp) into [throttle, fltcond|CL]
-        self.add_subsystem('balance_output', SplitVectorComp(num_nodes=2 * nn), promotes_outputs=[('vec1', 'throttle'), ('vec2', 'Tangle')])
-        self.connect('unsteadyflt.balance_imp_vars', 'balance_output.vec_concat')
-        # """
-
-        # --- find the body geometric AoA ---
-        """ TODO: Newton not working very well
-        # impose the continuity of the rotor tilt angle between transition and cruise. Adds one residual and the body geometric AoA as an implicit variable.
-        if flight_phase == 'transition_climb':
-            anchor_index = -1   # Tangle_transition[-1] = Tangle_cruise
-        elif flight_phase == 'transition_descent':
-            anchor_index = 0   # Tangle_transition[0] = Tangle_cruise
-        else:
-            raise RuntimeError('Set flight_phase = transition_climb or transition_descent in the transition phase.')
-
-        self.add_subsystem('Tangle_target', om.ExecComp('Tangle_anchor = Tangle', Tangle_anchor={'units' : 'rad', 'shape' : (1,)}, Tangle={'units' : 'rad', 'shape' : (1,), 'src_indices' : anchor_index}), promotes_inputs=['Tangle'])
-        self.add_subsystem('tilt_angle_continuity', om.BalanceComp(name='body_geom_alpha', val=11., lower=-15., upper=15., units='deg', normalize=False, eq_units='rad', rhs_name='Tangle_anchor', lhs_name='Tangle_cruise', rhs_val=10.),
-                            promotes_inputs=['Tangle_cruise'], promotes_outputs=['body_geom_alpha'])
-        self.connect('Tangle_target.Tangle_anchor', 'tilt_angle_continuity.Tangle_anchor')
-        """
-        
-        # or, set the body geometric AoA manually
-        ivcomp.add_output('body_geom_alpha', 5, units='deg')
-        ivcomp.add_output('Tangle_cruise', 45, units='deg')
