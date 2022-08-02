@@ -136,10 +136,12 @@ class SteadyVerticalFlightPhase(oc.PhaseGroup):
         self.options.declare('num_nodes', default=1)
         self.options.declare('flight_phase', default=None, desc='Phase of flight. currently only supports: climb, hover, descent')
         self.options.declare('aircraft_model', default=None)
+        self.options.declare('vtol_config', default='tiltwing', desc='tiltwing or tiltrotor or tailsitter or nowing')
 
     def setup(self):
         nn = self.options['num_nodes']
         flight_phase = self.options['flight_phase']
+        vtol_config = self.options['vtol_config']
 
         # constant parameters of the flight phase. Set (overwrite) these values from runscript using prob.set_val()
         ivcomp = self.add_subsystem('const_settings', IndepVarComp(), promotes_outputs=["*"])
@@ -167,7 +169,7 @@ class SteadyVerticalFlightPhase(oc.PhaseGroup):
         self.connect('fltcond|vs', 'atmos.fltcond|Ueas')   # compute the dynamic pressure based on vertical speed.
 
         # add the user-defined aircraft model
-        self.add_subsystem('acmodel', self.options['aircraft_model'](num_nodes=nn, flight_phase=self.options['flight_phase']), promotes_inputs=['*'], promotes_outputs=['*'])
+        self.add_subsystem('acmodel', self.options['aircraft_model'](num_nodes=nn, flight_phase=self.options['flight_phase'], vtol_config=vtol_config), promotes_inputs=['*'], promotes_outputs=['*'])
 
         # vertical acceleration
         # the direction (sign) of the drag depends on the mission phase. Positive for climb, negative for descent.
@@ -196,10 +198,10 @@ class SteadyFlightPhaseForVTOLCruise(oc.PhaseGroup):
         - Airspeed (fltcond|Ueas)
         - Vertical speed (fltcond|vs)
         - Duration of the segment (duration)
-        - Thrust tilt angle w.r.t. flight path angle (Tangle)
+        - Thrust tilt angle w.r.t. horizontal plane (Tangle)
 
     Throttle is set automatically to ensure steady flight;
-        - i.e., T cos(Tangle) = D + mg sin(gamma); T sin(Tangle) + L = mg cos(gamma)
+        - i.e., T cos(Tangle - gamma) = D + mg sin(gamma); T sin(Tangle - gamma) + L = mg cos(gamma)
 
     The BaseAircraftGroup object is passed in.
     The BaseAircraftGroup should be built to accept the following inputs
@@ -250,10 +252,12 @@ class SteadyFlightPhaseForVTOLCruise(oc.PhaseGroup):
         self.options.declare('num_nodes', default=1)
         self.options.declare('flight_phase', default=None, desc='Phase of flight. currently only supports: cruise')
         self.options.declare('aircraft_model', default=None)
+        self.options.declare('vtol_config', default='tiltwing', desc='tiltwing or tiltrotor or tailsitter or nowing')
 
     def setup(self):
         nn = self.options['num_nodes']
         flight_phase = self.options['flight_phase']
+        vtol_config = self.options['vtol_config']
 
         # constant parameters of the flight phase. Set (overwrite) these values from runscript using prob.set_val()
         ivcomp = self.add_subsystem('const_settings', IndepVarComp(), promotes_outputs=["*"])
@@ -266,7 +270,7 @@ class SteadyFlightPhaseForVTOLCruise(oc.PhaseGroup):
         ivcomp.add_output('fltcond|Ueas', val=np.ones((nn,)) * 90, units='m/s')    # horizontal speed
         ivcomp.add_output('fltcond|vs', val=np.ones((nn,)) * 1, units='m/s')   # vertical speed
         ivcomp.add_output('duration', val=1., units='s')       # duration of this phase
-        ivcomp.add_output('Tangle', val=np.ones((nn,)) * 5, units='deg')   # thrust tilt angle w.r.t. horizontal plane
+        ivcomp.add_output('Tangle', val=np.ones((nn,)) * 5, units='deg')   # thrust deflection angle w.r.t. horizontal plane
         
         # integrate the vertical velocity (fltcond|vs) to compute the altitude at each flight point. Also, integrate dt/dt=1 to compute the time at each point.
         integ = self.add_subsystem('ode_integ', Integrator(num_nodes=nn, diff_units='s', time_setup='duration', method='simpson'), promotes_inputs=['fltcond|vs', 'fltcond|groundspeed', 'dt_dt'], promotes_outputs=['fltcond|h', 'range', 'mission_time'])
@@ -281,7 +285,7 @@ class SteadyFlightPhaseForVTOLCruise(oc.PhaseGroup):
         integ.add_integrand('range', rate_name='fltcond|groundspeed', val=1.0, units='m')
 
         # add the user-defined aircraft model
-        self.add_subsystem('acmodel', self.options['aircraft_model'](num_nodes=nn, flight_phase=flight_phase), promotes_inputs=['*'], promotes_outputs=['*'])
+        self.add_subsystem('acmodel', self.options['aircraft_model'](num_nodes=nn, flight_phase=flight_phase, vtol_config=vtol_config), promotes_inputs=['*'], promotes_outputs=['*'])
 
         # thrust components in the flight path and perpendicular directions
         # - flight-path projection: T cos(Tangle - gamma); cos(Tangle - gamma) = cos(Tangle) * cos(gamma) + sin(Tangle) * sin(gamma)
@@ -313,18 +317,18 @@ class SteadyFlightPhaseForVTOLCruise(oc.PhaseGroup):
                            promotes_inputs=['accel_horiz', 'zero_accel'], promotes_outputs=['throttle'])
 
 
-class UnsteadyFlightPhaseForTiltrotorTransition(oc.PhaseGroup):
+class UnsteadyFlightPhaseForVTOL(oc.PhaseGroup):
     """
-    This component group models transition of tiltrotor VTOLs.
-    Settable mission parameters include:
-        - Airspeed (fltcond|Ueas)
+    This group models unsteady flight (i.e., non-zero acceleration phase such as transition) for VTOLs.
+    User-settable mission parameters include:
+        - Airspeed history (fltcond|Ueas)   # TODO: Ueas and Utrue
         - Vertical speed (fltcond|vs)
-        - derivative of Ueas and vs (i.e. acceleration)  TODO: automate this
+        - Time-derivative of Ueas and vs (i.e. acceleration)  TODO: automate this
         - Duration of the segment (duration)
 
     Throttle and rotor tilt angle (theta) is set automatically to achieve the given velocity history.
         - i.e., acceleration computed = differential of the given velocity history
-    CL, CD is determined given the angle of attack, where (AoA = -flight path angle)
+    CL, CD is determined given the angle of attack.
 
     The BaseAircraftGroup object is passed in.
     The BaseAircraftGroup should be built to accept the following inputs
@@ -373,18 +377,20 @@ class UnsteadyFlightPhaseForTiltrotorTransition(oc.PhaseGroup):
         self.options.declare('num_nodes', default=1)
         self.options.declare('flight_phase', default=None, desc='Phase of flight. transition_climb or transition_descent')
         self.options.declare('aircraft_model', default=None)
+        self.options.declare('vtol_config', default='tiltwing', desc='tiltwing or tiltrotor or tailsitter or nowing')
 
     def setup(self):
         nn = self.options['num_nodes']
-        flight_phase = self.options['flight_phase']
+        ## flight_phase = self.options['flight_phase']
+        vtol_config = self.options['vtol_config']
 
         # constant parameters of the flight phase. Set (overwrite) these values from runscript using prob.set_val()
         ivcomp = self.add_subsystem('const_settings', IndepVarComp(), promotes_outputs=["*"])
-        ivcomp.add_output('propulsor_active', val=np.ones(nn))
+        ### ivcomp.add_output('propulsor_active', val=np.ones(nn))
         ivcomp.add_output('braking', val=np.zeros(nn))   # this must be 0.
         ivcomp.add_output('dt_dt', val=np.ones(nn), units='s/s')  # dt/dt = 1. Will integrate this to obtain the time at each flight point.
         
-        # mission parameters (settable in runscript)
+        # mission parameters (user should set these in runscript)
         ivcomp.add_output('fltcond|Ueas', val=np.ones((nn,)) * 90, units='m/s')    # airspeed speed
         ivcomp.add_output('fltcond|vs', val=np.ones((nn,)) * 1, units='m/s')   # vertical speed
         ivcomp.add_output('duration', val=1., units='s')       # duration of this phase
@@ -405,14 +411,24 @@ class UnsteadyFlightPhaseForTiltrotorTransition(oc.PhaseGroup):
         self.add_subsystem('gs', Groundspeeds(num_nodes=nn), promotes_inputs=['*'], promotes_outputs=['*'])
         integ.add_integrand('range', rate_name='fltcond|groundspeed', val=1.0, units='m')
 
-        # wing angle of attack: alpha = -gamma + body_geom_alpha, where body_geom_alpha is the body AoA w.r.t. horizontal plane. Arcsin works if -90 <= gamma <= 90.
-        # body_geom_alpha is determined so that CL is continuous between transition and cruise (BalanceComp should be added in a trajectory group in mission_profiles_vtol.py)
-        sincos_dict = {'shape' : (nn,)}
-        self.add_subsystem('angle_of_attack', ExecComp('alpha = -arcsin(singamma) + body_geom_alpha', alpha={'units' : 'rad', 'shape' : (nn,)}, singamma=sincos_dict, body_geom_alpha={'units' : 'rad', 'shape' : (1,)}),
-                            promotes_inputs=[('singamma', 'fltcond|singamma'), 'body_geom_alpha'], promotes_outputs=[('alpha', 'fltcond|alpha')])
+        # compute angle of attacks of wing and body
+        if vtol_config == 'nowing':
+            raise NotImplementedError('nowing configuration not yet implemented')
+        elif vtol_config == 'tailsitter':
+            raise NotImplementedError('nowing configuration not yet implemented')
+        elif vtol_config == 'tiltwing':
+            # wing angle of attack: alpha = -gamma + body_pitch_angle, where body_pitch_angle is the angle between the wing chord line and horizontal plane. Arcsin works if -90 <= gamma <= 90.
+            # body_pitch_angle is determined so that CL is continuous between transition and cruise (BalanceComp should be added in a trajectory group in mission_profiles_vtol.py)
+            sincos_dict = {'shape' : (nn,)}
+            self.add_subsystem('angle_of_attack', ExecComp('alpha = -arcsin(singamma) + body_pitch_angle', alpha={'units' : 'rad', 'shape' : (nn,)}, singamma=sincos_dict, body_pitch_angle={'units' : 'rad', 'shape' : (1,)}),
+                               promotes_inputs=[('singamma', 'fltcond|singamma'), 'body_pitch_angle'], promotes_outputs=[('alpha', 'fltcond|alpha')])
+        elif vtol_config == 'tiltrotor':
+            raise NotImplementedError('nowing configuration not yet implemented')
+        else:
+            raise RuntimeError('specified vtol_config option is not valid.')
 
         # add the user-defined aircraft model
-        self.add_subsystem('acmodel', self.options['aircraft_model'](num_nodes=nn, flight_phase='transition'), promotes_inputs=['*'], promotes_outputs=['*'])
+        self.add_subsystem('acmodel', self.options['aircraft_model'](num_nodes=nn, flight_phase='transition', vtol_config=vtol_config), promotes_inputs=['*'], promotes_outputs=['*'])
 
         # --- compute accelerations ---
         # thrust components in the flight path and perpendicular directions
@@ -436,4 +452,4 @@ class UnsteadyFlightPhaseForTiltrotorTransition(oc.PhaseGroup):
         self.add_subsystem('unsteadyflt1', BalanceComp(name='throttle', val=np.ones((nn,)) * 0.5, lower=0.001, upper=1.2, units=None, normalize=False, eq_units='m/s**2', rhs_name='accel_horiz', lhs_name='accel_horiz_target', rhs_val=np.ones((nn,))),
                             promotes_inputs=['accel_horiz', 'accel_horiz_target'], promotes_outputs=['throttle'])
         self.add_subsystem('unsteadyflt2', BalanceComp(name='Tangle', val=np.ones((nn,)) * 90, lower=0., upper=180., units='deg', normalize=False, eq_units='m/s**2', rhs_name='accel_vert', lhs_name='accel_vert_target', rhs_val=np.ones((nn,))),
-                            promotes_inputs=['accel_vert', 'accel_vert_target'], promotes_outputs=['Tangle'])
+                            promotes_inputs=['accel_vert', 'accel_vert_target'], promotes_outputs=['Tangle'])   # theta: thrust direction w.r.t. horizontal plane

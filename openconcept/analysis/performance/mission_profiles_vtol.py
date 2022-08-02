@@ -1,6 +1,6 @@
 from openmdao.api import BalanceComp
 import openconcept.api as oc
-from openconcept.analysis.performance.solver_phases_vtol import SteadyVerticalFlightPhase, SteadyFlightPhaseForVTOLCruise, UnsteadyFlightPhaseForTiltrotorTransition
+from openconcept.analysis.performance.solver_phases_vtol import SteadyVerticalFlightPhase, SteadyFlightPhaseForVTOLCruise, UnsteadyFlightPhaseForVTOL
 
 class SimpleVTOLMission(oc.TrajectoryGroup):
     """
@@ -86,17 +86,17 @@ class SimpleVTOLMissionWithTransition(oc.TrajectoryGroup):
         if mode == 'full':
             # add climb, hover, and descent segments. Promote ac|* (such as W_battery, motor rating, prop diameter)
             climb = self.add_subsystem('climb', SteadyVerticalFlightPhase(num_nodes=nn, aircraft_model=acmodelclass, flight_phase='climb'), promotes_inputs=['ac|*'])
-            tran1 = self.add_subsystem('transition1', UnsteadyFlightPhaseForTiltrotorTransition(num_nodes=nn * 3, aircraft_model=acmodelclass, flight_phase='transition_climb'), promotes_inputs=['ac|*'])
+            tran1 = self.add_subsystem('transition1', UnsteadyFlightPhaseForVTOL(num_nodes=nn * 3, aircraft_model=acmodelclass, flight_phase='transition_climb'), promotes_inputs=['ac|*'])
             cruise = self.add_subsystem('cruise', SteadyFlightPhaseForVTOLCruise(num_nodes=nn, aircraft_model=acmodelclass, flight_phase='cruise') , promotes_inputs=['ac|*'])
-            tran2 = self.add_subsystem('transition2', UnsteadyFlightPhaseForTiltrotorTransition(num_nodes=nn * 3, aircraft_model=acmodelclass, flight_phase='transition_descent'), promotes_inputs=['ac|*'])
+            tran2 = self.add_subsystem('transition2', UnsteadyFlightPhaseForVTOL(num_nodes=nn * 3, aircraft_model=acmodelclass, flight_phase='transition_descent'), promotes_inputs=['ac|*'])
             descent = self.add_subsystem('descent', SteadyVerticalFlightPhase(num_nodes=nn, aircraft_model=acmodelclass, flight_phase='descent'), promotes_inputs=['ac|*'])
 
-            # impose CL continuity between cruise and transitions by varying body geometric AoA.
-            tran1.add_subsystem('CLcont1', BalanceComp('body_geom_alpha', val=5., units='deg', eq_units=None, lower=-15, upper=15, rhs_name='CL_transition1_end', lhs_name='CL_cruise_init'), promotes_outputs=['body_geom_alpha'])
+            # impose CL continuity between cruise and transitions by varying body pitch angle
+            tran1.add_subsystem('CLcont1', BalanceComp('body_pitch_angle', val=5., units='deg', eq_units=None, lower=-15, upper=15, rhs_name='CL_transition1_end', lhs_name='CL_cruise_init'), promotes_outputs=['body_pitch_angle'])
             self.connect('transition1.fltcond|CL', 'transition1.CLcont1.CL_transition1_end', src_indices=-1)
             self.connect('cruise.fltcond|CL', 'transition1.CLcont1.CL_cruise_init', src_indices=0)
 
-            tran2.add_subsystem('CLcont2', BalanceComp('body_geom_alpha', val=5., units='deg', eq_units=None, lower=-15, upper=15, rhs_name='CL_transition2_init', lhs_name='CL_cruise_end'), promotes_outputs=['body_geom_alpha'])
+            tran2.add_subsystem('CLcont2', BalanceComp('body_pitch_angle', val=5., units='deg', eq_units=None, lower=-15, upper=15, rhs_name='CL_transition2_init', lhs_name='CL_cruise_end'), promotes_outputs=['body_pitch_angle'])
             self.connect('transition2.fltcond|CL', 'transition2.CLcont2.CL_transition2_init', src_indices=0)
             self.connect('cruise.fltcond|CL', 'transition2.CLcont2.CL_cruise_end', src_indices=-1)
 
@@ -109,12 +109,12 @@ class SimpleVTOLMissionWithTransition(oc.TrajectoryGroup):
         elif mode == 'takeoff':
             # transition in takeoff only
             climb = self.add_subsystem('climb', SteadyVerticalFlightPhase(num_nodes=nn, aircraft_model=acmodelclass, flight_phase='climb'), promotes_inputs=['ac|*'])
-            tran1 = self.add_subsystem('transition1', UnsteadyFlightPhaseForTiltrotorTransition(num_nodes=nn * 3, aircraft_model=acmodelclass, flight_phase='transition_climb'), promotes_inputs=['ac|*'])
+            tran1 = self.add_subsystem('transition1', UnsteadyFlightPhaseForVTOL(num_nodes=nn * 3, aircraft_model=acmodelclass, flight_phase='transition_climb'), promotes_inputs=['ac|*'])
             cruise = self.add_subsystem('cruise', SteadyFlightPhaseForVTOLCruise(num_nodes=nn, aircraft_model=acmodelclass, flight_phase='cruise') , promotes_inputs=['ac|*'])
             descent = self.add_subsystem('descent', SteadyVerticalFlightPhase(num_nodes=nn, aircraft_model=acmodelclass, flight_phase='descent'), promotes_inputs=['ac|*'])
 
             # impose CL continuity between cruise and transitions by varying body geometric AoA.
-            tran1.add_subsystem('CLcont1', BalanceComp('body_geom_alpha', val=5., units='deg', eq_units=None, lower=-15, upper=15, rhs_name='CL_transition1_end', lhs_name='CL_cruise_init'), promotes_outputs=['body_geom_alpha'])
+            tran1.add_subsystem('CLcont1', BalanceComp('body_pitch_angle', val=5., units='deg', eq_units=None, lower=-15, upper=15, rhs_name='CL_transition1_end', lhs_name='CL_cruise_init'), promotes_outputs=['body_pitch_angle'])
             self.connect('transition1.fltcond|CL', 'transition1.CLcont1.CL_transition1_end', src_indices=-1)
             self.connect('cruise.fltcond|CL', 'transition1.CLcont1.CL_cruise_init', src_indices=0)
 
@@ -125,11 +125,11 @@ class SimpleVTOLMissionWithTransition(oc.TrajectoryGroup):
         elif mode == 'landing':
             climb = self.add_subsystem('climb', SteadyVerticalFlightPhase(num_nodes=nn, aircraft_model=acmodelclass, flight_phase='climb'), promotes_inputs=['ac|*'])
             cruise = self.add_subsystem('cruise', SteadyFlightPhaseForVTOLCruise(num_nodes=nn, aircraft_model=acmodelclass, flight_phase='cruise') , promotes_inputs=['ac|*'])
-            tran2 = self.add_subsystem('transition2', UnsteadyFlightPhaseForTiltrotorTransition(num_nodes=nn * 3, aircraft_model=acmodelclass, flight_phase='transition_descent'), promotes_inputs=['ac|*'])
+            tran2 = self.add_subsystem('transition2', UnsteadyFlightPhaseForVTOL(num_nodes=nn * 3, aircraft_model=acmodelclass, flight_phase='transition_descent'), promotes_inputs=['ac|*'])
             descent = self.add_subsystem('descent', SteadyVerticalFlightPhase(num_nodes=nn, aircraft_model=acmodelclass, flight_phase='descent'), promotes_inputs=['ac|*'])
 
             # impose CL continuity between cruise and transitions by varying body geometric AoA.
-            tran2.add_subsystem('CLcont2', BalanceComp('body_geom_alpha', val=5., units='deg', eq_units=None, lower=-15, upper=15, rhs_name='CL_transition2_init', lhs_name='CL_cruise_end'), promotes_outputs=['body_geom_alpha'])
+            tran2.add_subsystem('CLcont2', BalanceComp('body_pitch_angle', val=5., units='deg', eq_units=None, lower=-15, upper=15, rhs_name='CL_transition2_init', lhs_name='CL_cruise_end'), promotes_outputs=['body_pitch_angle'])
             self.connect('transition2.fltcond|CL', 'transition2.CLcont2.CL_transition2_init', src_indices=0)
             self.connect('cruise.fltcond|CL', 'transition2.CLcont2.CL_cruise_end', src_indices=-1)
 
