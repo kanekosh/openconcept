@@ -6,8 +6,8 @@
 .cache/
 build/
 *pycache*
-docs/_build
-docs/_srcdocs
+doc/_build
+doc/_srcdocs
 *_old.py
 *hide*
 coloring.json
@@ -19,3 +19,9 @@ coloring_files/total_coloring.pkl
 *egg-info/
 openconcept/.coverage
 .coverage
+scratch/
+*.out
+*.zip
+*.npy
+.DS_Store
+.flake8
